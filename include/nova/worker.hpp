@@ -1,31 +1,24 @@
 #pragma once
 
-#include <atomic>
 #include <optional>
 #include <ostream>
 #include <thread>
 
 #include <nova/util/atomic_intrusive_list.hpp>
-
-#include <iostream>
+#include <nova/util/synchronizer.hpp>
 
 namespace nova {
 inline namespace scheduler {
 
 struct task_base {
-    task_base(int tid = -1) : type_id(tid) {}
+    task_base() = default;
     task_base(const task_base &) = delete;
     task_base &operator=(const task_base &) = delete;
     task_base(task_base &&) = delete;
     task_base &operator=(task_base &&) = delete;
     virtual ~task_base() = default;
-    virtual void execute() {
-        std::cout << type_id << std::endl;
-    }
+    virtual void execute() = 0;
     task_base *next = nullptr;
-
-    //private:
-    volatile int type_id = 0;
 };
 
 enum class WorkerState {
@@ -58,13 +51,14 @@ struct worker_base {
         if (this_thread_worker_id.has_value()) {
             throw std::runtime_error{"already run worker on this thread."};
         }
+
         this_thread_worker_id = this->id;
         state.store(WorkerState::Running, std::memory_order_release);
         while (true) {
             while (static_cast<Derived *>(this)->execute_one()) {}
             static_cast<Derived *>(this)->try_sleep();
             if (is_stop_requested.load(std::memory_order_acquire))
-                return;
+                break;
         }
         this_thread_worker_id = std::nullopt;
     }
@@ -103,7 +97,6 @@ protected:
                 std::this_thread::yield();
             }
             state.wait(WorkerState::Sleeping, std::memory_order_acquire);
-            //            std::this_thread::yield();
             e = WorkerState::Sleeping;
         }
         e = WorkerState::Notified;
@@ -112,7 +105,7 @@ protected:
 
     const id_t id;
     std::atomic<bool> is_stop_requested = false;
-    std::atomic<WorkerState> state = WorkerState::Running;
+    sync_atomic<WorkerState> state = WorkerState::Running;
 };
 }// namespace scheduler
 }// namespace nova

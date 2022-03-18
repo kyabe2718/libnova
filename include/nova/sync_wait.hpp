@@ -1,10 +1,12 @@
 #pragma once
 
-#include "nova/util/return_value_or_void.hpp"
-#include "nova/util/synchronizer.hpp"
-#include <nova/config.hpp>
+#include <nova/task.hpp>
 #include <nova/type_traits.hpp>
+#include <nova/util/coroutine_base.hpp>
+#include <nova/util/return_value_or_void.hpp>
+#include <nova/util/synchronizer.hpp>
 
+#include <iostream>
 #include <utility>
 
 namespace nova {
@@ -13,11 +15,11 @@ template<typename T, typename Sync = synchronizer>
 struct sync_wait_task;
 
 template<typename T, typename Sync>
-struct sync_wait_promise : return_value_or_void<T>, Sync {
+struct sync_wait_promise : return_value_or_void<T>, Sync, task_allocator {
 
-    auto start() {
-        coro::coroutine_handle<sync_wait_promise>::from_promise(*this).resume();
-    }
+    //    auto start() {
+    //         coro::coroutine_handle<sync_wait_promise>::from_promise(*this).resume();
+    //    }
 
     auto initial_suspend() -> coro::suspend_always { return {}; }
 
@@ -43,27 +45,35 @@ struct sync_wait_task : coroutine_base<sync_wait_promise<T, Sync>> {
     friend promise_type;
     using coroutine_base<promise_type>::coroutine_base;
 
-    auto start() { this->get_promise().start(); }
+    auto start() {
+        this->coro.resume();
+    }
 
     auto wait() {
         this->get_promise().wait();
     }
 };
 
-template<typename Awaitable>
-auto sync_wait(Awaitable &&awaitable) -> decltype(auto) {
+namespace detail {
+template<typename Awaitable, typename AwaiterResultType = typename awaitable_traits<Awaitable>::awaiter_result_t>
+auto make_sync_wait_task(Awaitable &&awaitable) -> sync_wait_task<AwaiterResultType> {
+    if constexpr (std::is_void_v<AwaiterResultType>) {
+        co_await std::forward<decltype(awaitable)>(awaitable);
+    } else {
+        co_return co_await std::forward<decltype(awaitable)>(awaitable);
+    }
+}
+}// namespace detail
 
-    using awaiter_result_t = typename awaitable_traits<decltype(awaitable)>::awaiter_result_t;
+template<typename Awaitable, typename F>
+auto sync_wait(Awaitable &&awaitable, F &&f) -> decltype(auto) {
 
-    auto wait_task = [](auto &&awaitable) -> sync_wait_task<awaiter_result_t> {
-        if constexpr (std::is_void_v<awaiter_result_t>) {
-            co_await std::forward<decltype(awaitable)>(awaitable);
-        } else {
-            co_return co_await std::forward<decltype(awaitable)>(awaitable);
-        }
-    }(std::forward<Awaitable>(awaitable));
+    auto wait_task = detail::make_sync_wait_task(std::forward<Awaitable>(awaitable));
 
     wait_task.start();
+
+    f();
+
     wait_task.wait();
 
     if constexpr (std::is_rvalue_reference_v<Awaitable &&>) {
@@ -73,4 +83,8 @@ auto sync_wait(Awaitable &&awaitable) -> decltype(auto) {
     }
 }
 
+template<typename Awaitable>
+auto sync_wait(Awaitable &&awaitable) -> decltype(auto) {
+    return sync_wait(std::forward<Awaitable>(awaitable), [] {});
+}
 }// namespace nova

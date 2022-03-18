@@ -6,6 +6,8 @@
 #include <nova/numa_aware_scheduler.hpp>
 #include <nova/util/circular_iterator.hpp>
 
+#if NOVA_NUMA_AVAILABLE
+
 namespace nova {
 inline namespace scheduler {
 
@@ -179,3 +181,5 @@ numa_aware_scheduler::numa_aware_scheduler(std::size_t thread_num)
 
 }// namespace scheduler
 }// namespace nova
+
+#endif

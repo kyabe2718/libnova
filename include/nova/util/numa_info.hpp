@@ -1,5 +1,9 @@
 #pragma once
 
+#include <nova/config.hpp>
+
+#if NOVA_NUMA_AVAILABLE
+
 #include <numa.h>
 #include <vector>
 
@@ -90,3 +94,5 @@ private:
 };
 }// namespace numa
 }// namespace nova
+
+#endif// NOVA_NUMA_AVAILABLE

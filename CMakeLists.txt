@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.0)
 
+set(CMAKE_CXX_COMPILER g++-11)
+set(CMAKE_C_COMPILER gcc-11)
+
+project(libnova CXX)
+
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 file(GLOB NOVA_SRC ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp)
@@ -14,18 +19,17 @@ endif ()
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3")
 
-
 target_include_directories(nova ${PROP} ${CMAKE_CURRENT_LIST_DIR}/include)
 target_compile_options(nova ${PROP}
         -std=c++2a
-        #        -fcoroutines
-        -fcoroutines-ts
-        -stdlib=libc++
+        -fcoroutines
+#        -fcoroutines-ts
+#        -stdlib=libc++
         -Wall
         -Wextra
         -Wpedantic
         )
-target_link_libraries(nova ${PROP} pthread numa)
+target_link_libraries(nova ${PROP} pthread)
 
 if ((CMAKE_CXX_COMPILER_ID STREQUAL "Clang") OR (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"))
     message("Clang")

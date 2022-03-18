@@ -60,24 +60,22 @@ struct when_all_task : coroutine_base<when_all_promise<T>> {
     auto result() const && -> decltype(auto) { return std::move(this->get_promise()).result(); }
 };
 
-template<typename Awaitable>
-auto make_when_all_task(Awaitable &&awaitable) {
-    using R = typename awaitable_traits<Awaitable>::awaiter_result_t;
-    using result_type = std::conditional_t<std::is_rvalue_reference_v<R>, std::remove_reference_t<R>, R>;
-    //    using result_type = typename awaitable_traits<Awaitable>::awaiter_result_t;
+template<typename Awaitable, typename R = typename awaitable_traits<Awaitable &>::awaiter_result_t>
+auto make_when_all_task(Awaitable &awaitable) -> when_all_task<R> {
+    if constexpr (std::is_same_v<R, void>) {
+        co_await awaitable;
+    } else {
+        co_return co_await awaitable;
+    }
+}
 
-    // NOTE:
-    //  This lambda becomes return value of when_all() and refers to when_all()'s parameter ('awaitable').
-    //  If the parameter is rvalue and the return value is extended lifetime beyond when_all(), 'awaitable' becomes a dangling reference.
-    //  So, the type of 'awaitable' is not rvalue reference type.
-    using T = std::conditional_t<std::is_rvalue_reference_v<Awaitable &&>, std::remove_reference_t<Awaitable>, Awaitable &&>;
-    return [](T awaitable) -> when_all_task<result_type> {
-        if constexpr (std::is_same_v<result_type, void>) {
-            co_await std::forward<Awaitable>(awaitable);
-        } else {
-            co_return co_await std::forward<Awaitable>(awaitable);
-        }
-    }(std::forward<Awaitable>(awaitable));
+template<typename Awaitable, typename R = typename awaitable_traits<Awaitable>::awaiter_result_t>
+auto make_when_all_task(Awaitable awaitable) -> when_all_task<R> {
+    if constexpr (std::is_same_v<R, void>) {
+        co_await std::forward<Awaitable>(awaitable);
+    } else {
+        co_return co_await std::forward<Awaitable>(awaitable);
+    }
 }
 
 enum class launch {

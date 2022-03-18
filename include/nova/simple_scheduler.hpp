@@ -4,10 +4,10 @@
 #include <nova/util/atomic_intrusive_list.hpp>
 #include <nova/worker.hpp>
 
-#include <vector>
-#include <thread>
 #include <atomic>
 #include <memory>
+#include <thread>
+#include <vector>
 
 namespace nova {
 

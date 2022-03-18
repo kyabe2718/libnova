@@ -3,25 +3,27 @@
 #include <condition_variable>
 #include <mutex>
 
+#include <iostream>
+
+#include <nova/config.hpp>
+
 namespace nova {
 
-template<typename TState = bool>
 struct cv_synchronizer {
-
-    void wait(TState expected) {
+    void wait() {
         std::unique_lock lk(mtx);
-        cv.wait(lk, [this, expected] { return st = expected; });
+        cv.wait(lk, [this] { return st; });
     }
 
-    void notify(TState new_st) {
+    void notify() {
         std::unique_lock lk(mtx);
-        st = new_st;
+        st = true;
         cv.notify_one();
     }
 
-    void notify_all(TState new_st) {
+    void notify_all() {
         std::unique_lock lk(mtx);
-        st = new_st;
+        st = true;
         cv.notify_all();
     }
 
@@ -30,42 +32,11 @@ struct cv_synchronizer {
 private:
     std::mutex mtx;
     std::condition_variable cv;
-    TState st = {};
-};
-
-template<>
-struct cv_synchronizer<bool> {
-
-    void wait(bool expected = true) {
-        std::unique_lock lk(mtx);
-        cv.wait(lk, [this, expected] { return st = expected; });
-    }
-
-    void notify(bool new_st = true) {
-        std::unique_lock lk(mtx);
-        st = new_st;
-        cv.notify_one();
-    }
-
-    void notify_all(bool new_st = true) {
-        std::unique_lock lk(mtx);
-        st = new_st;
-        cv.notify_all();
-    }
-
-    auto state() noexcept {
-        std::unique_lock lk(mtx);
-        return st;
-    }
-
-private:
-    std::mutex mtx;
-    std::condition_variable cv;
     bool st = false;
 };
 
+#if NOVA_ATOMIC_WAIT_NOTIFY_AVAILABLE
 struct futex_synchronizer {
-
     void wait() {
         while (!flag.test(std::memory_order_acquire)) {
             flag.wait(false, std::memory_order_acquire);
@@ -89,7 +60,47 @@ struct futex_synchronizer {
 private:
     std::atomic_flag flag = {};
 };
+#endif
 
+#if NOVA_ATOMIC_WAIT_NOTIFY_AVAILABLE
 using synchronizer = futex_synchronizer;
+#else
+using synchronizer = cv_synchronizer;
+#endif
+
+template<typename T>
+struct cv_sync_atomic : std::atomic<T> {
+
+    using std::atomic<T>::atomic;
+
+    void wait(T old, std::memory_order m = std::memory_order_seq_cst) const noexcept {
+        std::unique_lock lk(mtx);
+        if (this->load(m) == old) {
+            cv.wait(lk);
+        }
+    }
+
+    void notify_one() noexcept {
+        std::unique_lock lk(mtx);
+        cv.notify_one();
+    }
+
+    void notify_all() noexcept {
+        std::unique_lock lk(mtx);
+        cv.notify_all();
+    }
+
+private:
+    mutable std::mutex mtx;
+    mutable std::condition_variable cv;
+};
+
+#if NOVA_ATOMIC_WAIT_NOTIFY_AVAILABLE
+template<typename T>
+using sync_atomic = std::atomic<T>;
+#else
+template<typename T>
+using sync_atomic = cv_sync_atomic<T>;
+#endif
 
 }// namespace nova

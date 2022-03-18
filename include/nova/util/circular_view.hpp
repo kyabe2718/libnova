@@ -5,7 +5,6 @@ inline namespace util {
 
 template<typename Iter>
 struct circular_view {
-
 };
 
 
