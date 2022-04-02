@@ -1,7 +1,9 @@
 #include <iostream>
 #include <nova/numa_aware_scheduler.hpp>
 
+
 int main() {
+#if NOVA_NUMA_AVAILABLE
     // hoge
     nova::numa_info info;
     for (auto &node: info.nodes()) {
@@ -30,4 +32,5 @@ int main() {
 
     //    nova::numa_aware_scheduler sched{100};
     //    std::cout << "unchi" << std::endl;
+#endif
 }

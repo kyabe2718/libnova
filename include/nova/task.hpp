@@ -5,18 +5,6 @@
 
 namespace nova {
 
-struct task_allocator {
-    //    static void *operator new(std::size_t n) {
-    //        return std::malloc(n);
-    //    }
-    //    static void operator delete(void *p) noexcept {
-    //        std::free(p);
-    //    }
-    //    static void operator delete(void *p, std::size_t) noexcept {
-    //        std::free(p);
-    //    }
-};
-
 template<typename T = void>
 struct task;
 
@@ -33,7 +21,7 @@ struct task_final_awaiter {
 };
 
 template<typename T>
-struct task_promise : return_value_or_void<T>, task_allocator {
+struct task_promise : return_value_or_void<T> {
 
     auto initial_suspend() -> coro::suspend_always { return {}; }
 

@@ -35,6 +35,9 @@ struct coroutine_base {
 
     [[nodiscard]] bool done() const { return coro.done(); }
 
+    auto &get() noexcept { return coro; }
+    const auto &get() const noexcept { return coro; }
+
 protected:
     explicit coroutine_base(coro::coroutine_handle<promise_type> coro)
         : coro(coro) {}

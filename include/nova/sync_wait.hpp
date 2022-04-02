@@ -15,7 +15,7 @@ template<typename T, typename Sync = synchronizer>
 struct sync_wait_task;
 
 template<typename T, typename Sync>
-struct sync_wait_promise : return_value_or_void<T>, Sync, task_allocator {
+struct sync_wait_promise : return_value_or_void<T>, Sync {
 
     //    auto start() {
     //         coro::coroutine_handle<sync_wait_promise>::from_promise(*this).resume();
@@ -71,9 +71,7 @@ auto sync_wait(Awaitable &&awaitable, F &&f) -> decltype(auto) {
     auto wait_task = detail::make_sync_wait_task(std::forward<Awaitable>(awaitable));
 
     wait_task.start();
-
     f();
-
     wait_task.wait();
 
     if constexpr (std::is_rvalue_reference_v<Awaitable &&>) {

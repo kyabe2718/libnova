@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nova/util/coroutine_base.hpp>
+#include <nova/util/return_value_or_void.hpp>
 
 namespace nova {
 
@@ -12,19 +13,23 @@ template<typename Y>
 struct promise_yield_adopter {
     template<typename T>
     auto yield_value(T &&v) {
-        value = std::forward<T>(v);
-        return std::suspend_always{};
+        *reinterpret_cast<Y *>(data) = std::forward<T>(v);
+        return coro::suspend_always{};
     }
 
-    Y value;
+    decltype(auto) get_value() { return *reinterpret_cast<Y *>(data); }
+    decltype(auto) get_value() const { return *reinterpret_cast<const Y *>(data); }
+
+private:
+    alignas(Y) std::byte data[sizeof(Y)];
 };
 
 template<>
 struct promise_yield_adopter<void> {
     struct dummy {};
-    auto yield_value(dummy = {}) {
-        return std::suspend_always{};
-    }
+    auto yield_value(dummy = {}) { return coro::suspend_always{}; }
+
+    auto get_value() const {}
 };
 }// namespace detail
 
@@ -39,28 +44,8 @@ struct generator_promise : detail::promise_yield_adopter<Y>, return_value_or_voi
     }
 };
 
-namespace detail {
 template<typename Y>
-struct current_value_adopter {
-    auto current_value() & -> auto & {
-        return this->get_promise().value;
-    }
-
-    auto current_value() const & -> const auto & {
-        return this->get_promise().value;
-    }
-
-    auto current_value() && -> auto && {
-        return std::move(this->get_promise().value);
-    }
-};
-
-template<>
-struct current_value_adopter<void> {};
-}// namespace detail
-
-template<typename Y>
-struct [[nodiscard]] generator : detail::current_value_adopter<Y>, coroutine_base<generator_promise<Y>> {
+struct [[nodiscard]] generator : coroutine_base<generator_promise<Y>> {
 
     using promise_type = generator_promise<Y>;
 
@@ -68,13 +53,16 @@ struct [[nodiscard]] generator : detail::current_value_adopter<Y>, coroutine_bas
 
     using coroutine_base<promise_type>::coroutine_base;
 
-    bool move_next() {
+    void next() {
         if (!this->done()) {
             this->coro.resume();
-            return !this->done();
-        } else {
-            return false;
         }
     }
+
+    decltype(auto) value() { return this->get_promise().get_value(); }
+    decltype(auto) value() const { return this->get_promise().get_value(); }
+
+    //    decltype(auto) operator()() { return next(), value(); }
+    //    decltype(auto) operator()() const { return next(), value(); }
 };
 }// namespace nova

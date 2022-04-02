@@ -61,7 +61,7 @@ struct when_all_task : coroutine_base<when_all_promise<T>> {
 };
 
 template<typename Awaitable, typename R = typename awaitable_traits<Awaitable &>::awaiter_result_t>
-auto make_when_all_task(Awaitable &awaitable) -> when_all_task<R> {
+auto make_when_all_task(Awaitable &awaitable) -> when_all_task<std::conditional_t<std::is_rvalue_reference_v<R>, std::remove_reference_t<R>, R>> {
     if constexpr (std::is_same_v<R, void>) {
         co_await awaitable;
     } else {
@@ -70,7 +70,7 @@ auto make_when_all_task(Awaitable &awaitable) -> when_all_task<R> {
 }
 
 template<typename Awaitable, typename R = typename awaitable_traits<Awaitable>::awaiter_result_t>
-auto make_when_all_task(Awaitable awaitable) -> when_all_task<R> {
+auto make_when_all_task(Awaitable awaitable) -> when_all_task<std::conditional_t<std::is_rvalue_reference_v<R>, std::remove_reference_t<R>, R>> {
     if constexpr (std::is_same_v<R, void>) {
         co_await std::forward<Awaitable>(awaitable);
     } else {
