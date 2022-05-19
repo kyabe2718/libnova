@@ -87,7 +87,7 @@ void simple_scheduler::post(task_base *op) {
 void simple_scheduler::run() {
     auto worker_id = worker_count.fetch_add(1);
     auto w = std::make_shared<worker_t>(*this, worker_id);
-    workers[worker_id] = w;
+    workers.at(worker_id) = w;
     w->run();
 }
 

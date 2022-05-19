@@ -14,16 +14,8 @@ std::vector<int> counts;
 
 int main() {
     std::cout << "start" << std::endl;
-    nova::simple_scheduler rt;
+    nova::simple_scheduler rt(10);
     std::cout << &rt << std::endl;
-
-//    std::thread th{[&rt] {
-//        while (true) {
-//            std::this_thread::sleep_for(100ms);
-//            rt.print_workers(std::cout);
-//        }
-//    }};
-//    th.detach();
 
     std::vector<std::thread> threads;
     for (int i = 0; i < 10; ++i) {
